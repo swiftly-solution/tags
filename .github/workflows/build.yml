@@ -3,13 +3,13 @@ name: Update Lua Version and Create Release
 on:
   push:
     tags:
-      - '*'  # Uruchamiaj workflow dla każdego tagu
+      - '*'
 
 jobs:
   versioning:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Potrzebne do commitowania zmian
+      contents: write 
 
     steps:
       - name: Checkout code
@@ -24,63 +24,68 @@ jobs:
         run: |
           git checkout master || git checkout -b master
 
-      - name: Update Lua file version
+      - name: Temporarily update Lua file version for release
         id: update_version
         run: |
           VERSION_FILE="plugins/tags/manifest.lua"
+          TAG_VERSION="${GITHUB_REF##*/}"
 
           echo "Version file: $VERSION_FILE"
+          echo "Tag version: $TAG_VERSION"
 
-          # Odczytaj aktualną wersję z funkcji GetPluginVersion
+          # Read the current version from the GetPluginVersion function (should be 'development')
           CURRENT_VERSION=$(awk -F'"' '/function GetPluginVersion()/, /end/ { if ($0 ~ /return/) print $2 }' "$VERSION_FILE")
-          echo "Current version: $CURRENT_VERSION"
+          echo "Current version in Lua file: $CURRENT_VERSION"
 
-          # Sprawdź, czy wersja została prawidłowo odczytana
-          if [ -z "$CURRENT_VERSION" ]; then
-            echo "Failed to extract current version."
-            exit 1
-          fi
+          # Temporarily update the Lua file version to the tag version (without committing changes)
+          sed -i "/function GetPluginVersion()/,/end/s|return \"$CURRENT_VERSION\"|return \"$TAG_VERSION\"|" "$VERSION_FILE"
 
-          # Zwiększ wersję
-          IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
-          PATCH=${VERSION_PARTS[2]}
-          PATCH=$((PATCH + 1))
-          NEW_VERSION="${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$PATCH"
-          echo "New version: $NEW_VERSION"
-
-          # Zaktualizuj wersję w pliku Lua
-          sed -i "/function GetPluginVersion()/,/end/s|return \"$CURRENT_VERSION\"|return \"$NEW_VERSION\"|" "$VERSION_FILE"
-
-          # Commit zmiany
-          git add "$VERSION_FILE"
-          git commit -m "Bump version to $NEW_VERSION"
-          git push origin master
+          # Save the tag version to an environment variable
+          echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_ENV
 
       - name: Create ZIP archive
         id: create_zip
         run: |
           REPO_NAME=$(basename -s .git `git config --get remote.origin.url`)
-          ZIP_NAME="${REPO_NAME}-v${NEW_VERSION}.zip"
+          ZIP_NAME="${REPO_NAME}-${TAG_VERSION}.zip"
           echo "ZIP Name: $ZIP_NAME"
           zip -r "$ZIP_NAME" . -x "*.git*"
           echo "ZIP_PATH=$ZIP_NAME" >> $GITHUB_ENV
 
-      - name: Upload ZIP artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: repository-archive
-          path: ${{ env.ZIP_PATH }}
+      - name: Get last tag before current tag
+        id: get_last_tag
+        run: |
+          # Fetch all tags
+          git fetch --tags
+          # Find the last tag before the current tag
+          LAST_TAG=$(git tag --sort=-creatordate | grep -B 1 "${GITHUB_REF##*/}" | head -n 1)
+          
+          # If LAST_TAG is equal to the current tag, it means no previous tag was found
+          if [ "$LAST_TAG" = "${GITHUB_REF##*/}" ]; then
+            # Remove the current tag from the list
+            LAST_TAG=$(git tag --sort=-creatordate | grep -v "${GITHUB_REF##*/}" | head -n 1)
+          fi
 
-      - name: Get commits since last tag
+          echo "Last tag before current tag: $LAST_TAG"
+          
+          # Save the last tag to an environment variable
+          echo "LAST_TAG=$LAST_TAG" >> $GITHUB_ENV
+
+      - name: Get commits from last tag to HEAD
         id: get_commits
         run: |
-          # Find the last tag
-          LAST_TAG=$(git describe --tags --abbrev=0)
+          # Read the last tag from the environment variable
+          LAST_TAG="${{ env.LAST_TAG }}"
           echo "Last tag: $LAST_TAG"
-          
-          # Get commits since last tag
-          COMMIT_MESSAGES=$(git log "${LAST_TAG}..HEAD" --pretty=format:"* %s")
-          echo "Commits since last tag:"
+
+          # Get commits from the last tag to HEAD
+          if [ -z "$LAST_TAG" ]; then
+            # If LAST_TAG is empty, it means no previous tag was found
+            COMMIT_MESSAGES=$(git log --pretty=format:"* [%h](https://github.com/${{ github.repository }}/commit/%H) - %s" || echo "No commits found")
+          else
+            COMMIT_MESSAGES=$(git log "${LAST_TAG}..HEAD" --pretty=format:"* [%h](https://github.com/${{ github.repository }}/commit/%H) - %s" || echo "No commits found")
+          fi
+          echo "Commits from last tag to HEAD:"
           echo "$COMMIT_MESSAGES"
 
           # Save the commit messages to an environment variable
@@ -95,7 +100,7 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
           body: |
-            Changes:
+            Changes in this release:
             ${{ env.COMMITS }}
 
       - name: Upload Release Asset

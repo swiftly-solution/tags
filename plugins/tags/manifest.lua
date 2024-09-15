@@ -2,7 +2,7 @@ function GetPluginAuthor()
     return "m3ntorsky"
 end
 function GetPluginVersion()
-    return "v1.0.1"
+    return "development"  -- ! Will be automaticly updated after create release
 end
 function GetPluginName()
     return "tags"
