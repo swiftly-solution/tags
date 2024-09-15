@@ -21,7 +21,7 @@
 
 
 ## Installation 👀
-1. Download the newest [release](https://github.com/swiftly-solution/weapon_restrictor/releases)
+1. Download the newest [release](https://github.com/m3ntorsky/tags/releases)
 2. Everything is drag & drop, so I think you can do it!
 
 ### Configuring the plugin 🧐
