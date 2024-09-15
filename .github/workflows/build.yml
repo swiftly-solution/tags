@@ -1,0 +1,109 @@
+name: Update Lua Version and Create Release
+
+on:
+  push:
+    tags:
+      - '*'  # Uruchamiaj workflow dla każdego tagu
+
+jobs:
+  versioning:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Potrzebne do commitowania zmian
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Git
+        run: |
+          git config user.name 'GitHub Actions'
+          git config user.email 'actions@github.com'
+
+      - name: Checkout to master branch
+        run: |
+          git checkout master || git checkout -b master
+
+      - name: Update Lua file version
+        id: update_version
+        run: |
+          VERSION_FILE="plugins/tags/manifest.lua"
+
+          echo "Version file: $VERSION_FILE"
+
+          # Odczytaj aktualną wersję z funkcji GetPluginVersion
+          CURRENT_VERSION=$(awk -F'"' '/function GetPluginVersion()/, /end/ { if ($0 ~ /return/) print $2 }' "$VERSION_FILE")
+          echo "Current version: $CURRENT_VERSION"
+
+          # Sprawdź, czy wersja została prawidłowo odczytana
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "Failed to extract current version."
+            exit 1
+          fi
+
+          # Zwiększ wersję
+          IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
+          PATCH=${VERSION_PARTS[2]}
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$PATCH"
+          echo "New version: $NEW_VERSION"
+
+          # Zaktualizuj wersję w pliku Lua
+          sed -i "/function GetPluginVersion()/,/end/s|return \"$CURRENT_VERSION\"|return \"$NEW_VERSION\"|" "$VERSION_FILE"
+
+          # Commit zmiany
+          git add "$VERSION_FILE"
+          git commit -m "Bump version to $NEW_VERSION"
+          git push origin master
+
+      - name: Create ZIP archive
+        id: create_zip
+        run: |
+          REPO_NAME=$(basename -s .git `git config --get remote.origin.url`)
+          ZIP_NAME="${REPO_NAME}-v${NEW_VERSION}.zip"
+          echo "ZIP Name: $ZIP_NAME"
+          zip -r "$ZIP_NAME" . -x "*.git*"
+          echo "ZIP_PATH=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: repository-archive
+          path: ${{ env.ZIP_PATH }}
+
+      - name: Get commits since last tag
+        id: get_commits
+        run: |
+          # Find the last tag
+          LAST_TAG=$(git describe --tags --abbrev=0)
+          echo "Last tag: $LAST_TAG"
+          
+          # Get commits since last tag
+          COMMIT_MESSAGES=$(git log "${LAST_TAG}..HEAD" --pretty=format:"* %s")
+          echo "Commits since last tag:"
+          echo "$COMMIT_MESSAGES"
+
+          # Save the commit messages to an environment variable
+          echo "COMMITS=${COMMIT_MESSAGES}" >> $GITHUB_ENV
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          body: |
+            Changes:
+            ${{ env.COMMITS }}
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.ZIP_PATH }}
+          asset_name: ${{ env.ZIP_PATH }}
+          asset_content_type: application/zip

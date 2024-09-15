@@ -1,0 +1,26 @@
+{
+    "loaded": {
+        "en": "{green}{COUNT}{default} tag(s) have been loaded from the database."
+    },
+    "reloaded": {
+        "en": "All server tags have been reloaded successfully."
+    },
+    "added": {
+        "en": "You have successfully added tag {green}{ID}{default}."
+    },
+    "updated": {
+        "en": "You have successfully updated tag {green}{ID}{default}."
+    },
+    "removed": {
+        "en": "You have successfully removed tag {green}{ID}{default}."
+    },
+    "empty_list": {
+        "en": "There are no tags to be shown."
+    },
+    "exists": {
+        "en": "A tag with the identifier {green}{ID}{default} already exists."
+    },
+    "not_exists": {
+        "en": "A tag with the identifier {green}{ID}{default} does not exist."
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "prefix": "{DARKRED}[TAGS]{DEFAULT}",
+
+    "database": {
+        "connection":"default_connection",
+        "tablesname": {
+            "tags" : "sw_tags"
+        }
+    }
+}
