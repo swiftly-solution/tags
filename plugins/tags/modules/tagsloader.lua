@@ -96,83 +96,78 @@ end
 function DetermineTag(playerid)
     local lastTag = nil
     local player = GetPlayer(playerid)
-    if not player then return nil end
+    if not player or not player:IsValid() or not player:CBaseEntity():IsValid() then return nil end
 
-    -- local isBot = player:IsFakeClient()
-    local isValid = player:IsValid()
     local teamID = player:CBaseEntity().TeamNum
     local steamID = player:GetSteamID()
 
+    local conditions = {
 
-local conditions = {
-    -- identifier : bots -- not works
-    -- { condition = function() return isBot and TagsIndexMap["bots"], Tags[TagsIndexMap["bots"]] end },
+        -- identifier: everyone
+        { condition = function() return TagsIndexMap["everyone"], Tags[TagsIndexMap["everyone"]] end },
 
-    -- identifier: everyone
-    { condition = function() return isValid and TagsIndexMap["everyone"], Tags[TagsIndexMap["everyone"]] end },
+        -- identifier: team:tt
+        { condition = function() return TagsIndexMap["team:tt"] and teamID == Team.T, Tags[TagsIndexMap["team:tt"]] end },
 
-    -- identifier: team:tt
-    { condition = function() return isValid and TagsIndexMap["team:tt"] and teamID == Team.T, Tags[TagsIndexMap["team:tt"]] end },
+        -- identifier: team:ct
+        { condition = function() return  TagsIndexMap["team:ct"] and teamID == Team.CT, Tags[TagsIndexMap["team:ct"]] end },
 
-    -- identifier: team:ct
-    { condition = function() return isValid and TagsIndexMap["team:ct"] and teamID == Team.CT, Tags[TagsIndexMap["team:ct"]] end },
+        -- identifier: team:spec
+        { condition = function() return TagsIndexMap["team:spec"] and teamID == Team.Spectator, Tags[TagsIndexMap["team:spec"]] end },
 
-    -- identifier: team:spec
-    { condition = function() return isValid and TagsIndexMap["team:spec"] and teamID == Team.Spectator, Tags[TagsIndexMap["team:spec"]] end },
+        -- identifier: steamid:(steamid64)
+        { condition = function() return steamID and TagsIndexMap["steamid:" .. steamID], Tags[TagsIndexMap["steamid:" .. steamID]] end },
 
-    -- identifier: steamid:(steamid64)
-    { condition = function() return isValid and steamID and TagsIndexMap["steamid:" .. steamID], Tags[TagsIndexMap["steamid:" .. steamID]] end },
-
-    -- identifier: vip:(group_name)
-    {
-        condition = function()
-            if isValid and Plugins["vipcore"] then
-                local vipGroup = player:GetVar("vip.group") or "none"
-                if vipGroup ~= nil and vipGroup ~= "none" then
-                    local index = TagsIndexMap["vip:" .. vipGroup]
-                    if index then
-                        return true, Tags[index]
-                    end
-                end
-            end
-            return false, nil
-        end
-    },
-
-    -- identifier: admins:flags:(flags_string) or admins:group:(group_name)
-    {
-        condition = function()
-            if isValid and Plugins["admins"] then
-                local adminFlags = player:GetVar("admin.flags") or 0
-                local adminGroup = exports["admins"]:GetAdminGroup(playerid) or "none"
-                local latestAdminTag = nil
-                
-                if adminGroup ~= "none" then
-                    for key, index in pairs(TagsIndexMap) do
-                        local group, groupCount = string.gsub(key, "admin:group:", "", 1)
-                        if groupCount ~= 0 and group == adminGroup then
-                            latestAdminTag = Tags[index]
-                            return true, latestAdminTag
-                        end
-                    end
-                end
-
-                
-                if adminFlags ~= 0 then
-                    for key, index in pairs(TagsIndexMap) do
-                        local flags, flagsCount = string.gsub(key, "admin:flags:", "", 1)
-                        if flagsCount ~= 0 and exports["admins"]:HasFlags(playerid, flags) then
-                            latestAdminTag = Tags[index]
-                            return true, latestAdminTag
+        -- identifier: vip:(group_name)
+        {
+            condition = function()
+                if Plugins["vipcore"] then
+                    local vipGroup = player:GetVar("vip.group") or "none"
+                    if vipGroup ~= nil and vipGroup ~= "none" then
+                        local index = TagsIndexMap["vip:" .. vipGroup]
+                        if index then
+                            return true, Tags[index]
                         end
                     end
                 end
                 return false, nil
             end
-            return false, nil
-        end
+        },
+
+        -- identifier: admins:flags:(flags_string) or admins:group:(group_name)
+        {
+            condition = function()
+                if Plugins["admins"] then
+                    local adminFlags = player:GetVar("admin.flags") or 0
+                    local adminGroup = exports["admins"]:GetAdminGroup(playerid) or "none"
+                    local latestAdminTag = nil
+                    
+                    if adminGroup ~= "none" then
+                        for key, index in pairs(TagsIndexMap) do
+                            local group, groupCount = string.gsub(key, "admin:group:", "", 1)
+                            if groupCount ~= 0 and group == adminGroup then
+                                latestAdminTag = Tags[index]
+                                return true, latestAdminTag
+                            end
+                        end
+                    end
+
+                    
+                    if adminFlags ~= 0 then
+                        for key, index in pairs(TagsIndexMap) do
+                            local flags, flagsCount = string.gsub(key, "admin:flags:", "", 1)
+                            if flagsCount ~= 0 and exports["admins"]:HasFlags(playerid, flags) then
+                                latestAdminTag = Tags[index]
+                                return true, latestAdminTag
+                            end
+                        end
+                    end
+                    return false, nil
+                end
+                return false, nil
+            end
+        }
     }
-}
 
     for i, cond in ipairs(conditions) do
         local conditionResult, tag = cond.condition()
