@@ -90,7 +90,7 @@ function SetupTag(playerid)
     else
         player:CCSPlayerController().Clan = ""
     end
-    RefreshScoreboard()
+    RefreshScoreboard(playerid)
 end
 
 function DetermineTag(playerid)

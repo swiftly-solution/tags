@@ -16,7 +16,7 @@ function PrepareColor(stringColor)
     return "{" .. stringColor .. "}"
 end
 
-function RefreshScoreboard()
+function RefreshScoreboard(playerid)
     local event = Event("OnNextlevelChanged")
-    event:FireEvent(false)
+    event:FireEventToClient(playerid)
 end
