@@ -27,7 +27,7 @@ jobs:
       - name: Temporarily update Lua file version for release
         id: update_version
         run: |
-          VERSION_FILE="plugins/tags/manifest.lua"
+          VERSION_FILE="plugins/tags/core.lua"
           TAG_VERSION="${GITHUB_REF##*/}"
 
           echo "Version file: $VERSION_FILE"
@@ -42,12 +42,15 @@ jobs:
 
           # Save the tag version to an environment variable
           echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_ENV
-
+      - name: Remove README and LICENSE files
+        run: |
+          echo "Removing README and LICENSE files"
+          rm -f README.md LICENSE
       - name: Create ZIP archive
         id: create_zip
         run: |
           REPO_NAME=$(basename -s .git `git config --get remote.origin.url`)
-          ZIP_NAME="${REPO_NAME}-${TAG_VERSION}.zip"
+          ZIP_NAME="${REPO_NAME}.zip"
           echo "ZIP Name: $ZIP_NAME"
           zip -r "$ZIP_NAME" . -x "*.git*"
           echo "ZIP_PATH=$ZIP_NAME" >> $GITHUB_ENV

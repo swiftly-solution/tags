@@ -8,5 +8,5 @@ function GetPluginName()
     return "tags"
 end
 function GetPluginWebsite()
-    return "https://github.com/m3ntorsky/tags"
+    return "https://github.com/swiftly-solution/tags"
 end
