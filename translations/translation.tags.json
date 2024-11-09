@@ -22,5 +22,32 @@
     },
     "not_exists": {
         "en": "A tag with the identifier {green}{ID}{default} does not exist."
+    },
+    "menu.title": {
+        "en": "Tags Menu"
+    },
+    "menu.option.enable": {
+        "en": "Enable"
+    },
+    "menu.option.on": {
+        "en": "<font color='#00FF00'>✔</font>"
+    },
+    "menu.option.off": {
+        "en": "<font color='#FF0000'>✖</font>"
+    },
+    "menu.option.mode": {
+        "en": "Mode"
+    },
+    "menu.option.mode.auto": {
+        "en": "<font color='#00FF00'>AUTO</font>"
+    },
+    "menu.option.mode.manual": {
+        "en": "<font color='#FF0000'>MANUAL</font>"
+    },
+    "menu.option.tag": {
+        "en": "Tag"
+    },
+    "menu.option.tag.list": {
+        "en": "Tag List"
     }
 }

@@ -72,14 +72,8 @@ function ReloadTags()
 end
 
 
-function SetupTag(playerid)
-    if #Tags == 0 then return end
-    local player = GetPlayer(playerid)
-    if not player then return end
-
-    local tag = DetermineTag(playerid)
+function SetPlayerTag(player, tag)
     if not tag then return end
-
     player:SetChatTag(tag.tag)
     player:SetChatTagColor(PrepareColor(tag.color))
     player:SetNameColor(PrepareColor(tag.name_color))
@@ -90,40 +84,77 @@ function SetupTag(playerid)
     else
         player:CCSPlayerController().Clan = ""
     end
-    RefreshScoreboard(playerid)
+
+    RefreshScoreboard(player:GetSlot())
 end
 
-function DetermineTag(playerid)
-    local lastTag = nil
+function SetupTag(playerid)
+    if #Tags == 0 then return end
     local player = GetPlayer(playerid)
-    if not player or not player:IsValid() or not player:CBaseEntity():IsValid() then return nil end
+    if not player then return end
 
+    ClearTag(playerid)
+
+    local cookieEnabled = exports["cookies"]:GetPlayerCookie(playerid, "tags.enable") or false
+
+    if not cookieEnabled then return end
+
+    local cookieMode = exports["cookies"]:GetPlayerCookie(playerid, "tags.mode")
+
+    if cookieMode == TagsMode_t.AUTO then
+        local tag = DetermineLastTag(player)
+        SetPlayerTag(player, tag)
+    elseif cookieMode == TagsMode_t.MANUAL then
+        local cookieSelected = exports["cookies"]:GetPlayerCookie(playerid, "tags.selected")
+
+        if cookieSelected == "auto" then
+            local tag = DetermineLastTag(playerid)
+            SetPlayerTag(player, tag)
+        else
+            local tag = Tags[TagsIndexMap[cookieSelected]]
+            SetPlayerTag(player, tag)
+        end
+    end
+end
+
+local function GetPlayerTags(player)
+    local tags = {}
     local teamID = player:CBaseEntity().TeamNum
     local steamID = player:GetSteamID()
 
     local conditions = {
 
         -- identifier: everyone
-        { condition = function() return TagsIndexMap["everyone"], Tags[TagsIndexMap["everyone"]] end },
+        { condition = function() 
+            return TagsIndexMap["everyone"], Tags[TagsIndexMap["everyone"]] 
+        end },
 
         -- identifier: team:tt
-        { condition = function() return TagsIndexMap["team:tt"] and teamID == Team.T, Tags[TagsIndexMap["team:tt"]] end },
+        { condition = function() 
+            return TagsIndexMap["team:tt"] and teamID == Team.T, Tags[TagsIndexMap["team:tt"]] 
+        end },
 
         -- identifier: team:ct
-        { condition = function() return  TagsIndexMap["team:ct"] and teamID == Team.CT, Tags[TagsIndexMap["team:ct"]] end },
+        { condition = function() 
+            return TagsIndexMap["team:ct"] and teamID == Team.CT, Tags[TagsIndexMap["team:ct"]] 
+        end },
 
         -- identifier: team:spec
-        { condition = function() return TagsIndexMap["team:spec"] and teamID == Team.Spectator, Tags[TagsIndexMap["team:spec"]] end },
+        { condition = function() 
+            return TagsIndexMap["team:spec"] and teamID == Team.Spectator, Tags[TagsIndexMap["team:spec"]] 
+        end },
 
         -- identifier: steamid:(steamid64)
-        { condition = function() return steamID and TagsIndexMap["steamid:" .. steamID], Tags[TagsIndexMap["steamid:" .. steamID]] end },
+        { condition = function() 
+            return steamID and TagsIndexMap["steamid:" .. steamID], Tags[TagsIndexMap["steamid:" .. steamID]] 
+        end },
 
         -- identifier: vip:(group_name)
         {
             condition = function()
                 if Plugins["vipcore"] then
                     local vipGroup = player:GetVar("vip.group") or "none"
-                    if vipGroup ~= nil and vipGroup ~= "none" then
+                    if vipGroup ~= "none" then
                         local index = TagsIndexMap["vip:" .. vipGroup]
                         if index then
                             return true, Tags[index]
@@ -134,53 +165,87 @@ function DetermineTag(playerid)
             end
         },
 
-        -- identifier: admins:flags:(flags_string) or admins:group:(group_name)
+        -- identifier: admins:flags:(flags_string)
         {
             condition = function()
                 if Plugins["admins"] then
-                    local adminFlags = player:GetVar("admin.flags") or 0
-                    local adminGroup = exports["admins"]:GetAdminGroup(playerid) or "none"
-                    local latestAdminTag = nil
-                    
-                    if adminGroup ~= "none" then
-                        for key, index in pairs(TagsIndexMap) do
-                            local group, groupCount = string.gsub(key, "admin:group:", "", 1)
-                            if groupCount ~= 0 and group == adminGroup then
-                                latestAdminTag = Tags[index]
-                                return true, latestAdminTag
-                            end
-                        end
-                    end
-
-                    
+                    local adminFlags = player:GetVar("admin.flags") or 0                    
                     if adminFlags ~= 0 then
-                        for key, index in pairs(TagsIndexMap) do
-                            local flags, flagsCount = string.gsub(key, "admin:flags:", "", 1)
-                            if flagsCount ~= 0 and exports["admins"]:HasFlags(playerid, flags) then
-                                latestAdminTag = Tags[index]
-                                return true, latestAdminTag
+                        local adminTags = {}
+                        for key, _ in next, TagsIndexMap do
+                            local flags, flagsCount = key:gsub("admin:flags:", "", 1)
+                            if flagsCount ~= 0 and exports["admins"]:HasFlags(player:GetSlot(), flags) then
+                                -- Dodajemy tag tylko, jeśli jeszcze go nie mamy
+                                if not table.contains(adminTags, key) then
+                                    table.insert(adminTags, key)
+                                end
+                            end
+                        end
+                        if #adminTags > 0 then
+                            table.sort(adminTags)
+                            for _, tagKey in ipairs(adminTags) do
+                                local index = TagsIndexMap[tagKey]
+                                -- Dodajemy tag tylko, jeśli jeszcze go nie mamy
+                                if not table.contains(tags, Tags[index]) then
+                                    table.insert(tags, Tags[index])
+                                end
                             end
                         end
                     end
-                    return false, nil
+                end
+                return false, nil
+            end
+        },
+
+        -- identifier: admins:groups:(group_name)
+        {
+            condition = function()
+                if Plugins["admins"] then
+                    local adminGroup = exports["admins"]:GetAdminGroup(player:GetSlot()) or "none"
+                    if adminGroup ~= "none" then
+                        for key, index in next, TagsIndexMap do
+                            local group, groupCount = key:gsub("admin:group:", "", 1)
+                            if groupCount ~= 0 and group == adminGroup then
+                                -- Dodajemy tag tylko, jeśli jeszcze go nie mamy
+                                if not table.contains(tags, Tags[index]) then
+                                    table.insert(tags, Tags[index])
+                                end
+                                return true, Tags[index]
+                            end
+                        end
+                    end
                 end
                 return false, nil
             end
         }
     }
 
-    for i, cond in ipairs(conditions) do
+    -- Przejście przez warunki i dodanie wszystkich pasujących tagów
+    for _, cond in next, conditions do
         local conditionResult, tag = cond.condition()
-        if conditionResult then
-            if tag then
-                lastTag = tag
+        if conditionResult and tag then
+            -- Dodajemy tag tylko, jeśli jeszcze go nie mamy
+            if not table.contains(tags, tag) then
+                table.insert(tags, tag)
             end
         end
     end
 
-    return lastTag
+    return tags
 end
 
+function DetermineTags(player)
+    if not player or not player:IsValid() or not player:CBaseEntity():IsValid() then 
+        return nil 
+    end
+    
+    return GetPlayerTags(player)
+end
+
+function DetermineLastTag(player)
+    local tags = DetermineTags(player)
+    return #tags > 0 and tags[#tags] or nil
+end
 
 AddEventHandler("OnPlayerConnectFull", function (event)
     local playerid = event:GetInt("userid")
