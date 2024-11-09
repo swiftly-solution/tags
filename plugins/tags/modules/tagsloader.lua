@@ -108,7 +108,7 @@ function SetupTag(playerid)
         local cookieSelected = exports["cookies"]:GetPlayerCookie(playerid, "tags.selected")
 
         if cookieSelected == "auto" then
-            local tag = DetermineLastTag(playerid)
+            local tag = DetermineLastTag(player)
             SetPlayerTag(player, tag)
         else
             local tag = Tags[TagsIndexMap[cookieSelected]]
