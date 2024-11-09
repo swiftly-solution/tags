@@ -20,3 +20,15 @@ function RefreshScoreboard(playerid)
     local event = Event("OnNextlevelChanged")
     event:FireEventToClient(playerid)
 end
+
+
+function ClearTag(playerid)
+    local player = GetPlayer(playerid)
+    if not player or not player:IsValid() then return end
+    player:SetChatTag("")
+    player:SetChatTagColor("{teamcolor}")
+    player:SetNameColor("{teamcolor}")
+    player:SetChatColor("{default}")
+    player:CCSPlayerController().Clan = ""
+    RefreshScoreboard(playerid)
+end

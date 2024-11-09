@@ -143,6 +143,57 @@ local consoleCommands = {
     end
 }
 
+local playerCommands = {
+    show = function(playerid, args, argc, silent)
+        return GenerateTagsMenu(playerid)
+    end,
+    toggle = function(playerid, args, argc, silent)
+
+        local player = GetPlayer(playerid)
+        if not player or not player:IsValid() then return end
+
+        if argc < 2 then return GenerateTagsMenu(playerid) end
+
+        local option = args[2]
+
+        switch(option, {
+            ["enable"] = function()
+                local value = exports["cookies"]:GetPlayerCookie(playerid, "tags.enable")
+                exports["cookies"]:SetPlayerCookie(playerid, "tags.enable", not value)
+            end,
+            ["mode"] = function()
+                local value = exports["cookies"]:GetPlayerCookie(playerid, "tags.mode")
+                switch(value, {
+                    [TagsMode_t.AUTO] = function() exports["cookies"]:SetPlayerCookie(playerid, "tags.mode", TagsMode_t.MANUAL) end,
+                    [TagsMode_t.MANUAL] = function() exports["cookies"]:SetPlayerCookie(playerid, "tags.mode", TagsMode_t.AUTO) end
+                })
+            end
+        })
+        SetupTag(playerid)
+        return GenerateTagsMenu(playerid)
+
+    end,
+    list = function(playerid, args, argc, silent)
+        return GenerateTagsListMenu(playerid)
+    end,
+    set = function(playerid, args, argc, silent)
+        if argc < 2 then 
+            return GenerateTagsMenu(playerid)
+        end
+
+        local identifier = args[2]
+
+        if not identifier or not TagsIndexMap[identifier] then
+            return GenerateTagsMenu(playerid)
+        end
+
+        exports["cookies"]:SetPlayerCookie(playerid,"tags.selected", identifier)
+        SetupTag(playerid)
+        return GenerateTagsMenu(playerid)
+
+    end
+}
+
 
 commands:Register("tags", function(playerid, args, argc, silent, prefix)
     if playerid < 0 then
@@ -157,7 +208,16 @@ commands:Register("tags", function(playerid, args, argc, silent, prefix)
         end
 
         return consoleCommands[option](playerid, args, argc, silent)
+    else
+        if argc < 1 then
+            return playerCommands["show"](playerid, args, argc, silent)
+        end
+        local option = args[1]
+
+        if not playerCommands[option] then
+            return playerCommands["show"](playerid, args, argc, silent)
+        end
+
+        return playerCommands[option](playerid, args, argc, silent)
     end
-    --  TODO: Player menu style
-    return
 end)
