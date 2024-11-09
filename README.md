@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/swiftly-solution/weapon_restrictor">
+  <a href="https://github.com/swiftly-solution/swiftly">
     <img src="https://cdn.swiftlycs2.net/swiftly-logo.png" alt="SwiftlyLogo" width="80" height="80">
   </a>
 
@@ -19,6 +19,8 @@
 </p>
 
 
+## Requirements 🛠️
+- [Cookies](https://github.com/swiftly-solution/cookies/releases)
 
 ## Installation 👀
 1. Download the newest [release](https://github.com/m3ntorsky/tags/releases)
@@ -56,6 +58,14 @@
 - `sw_tags reload`
   - Reloads the tags configuration from the database.
 
+
+### Tags Menu Commands 💬
+
+* Base commands provided by this plugin:
+
+|      Command     |               Description              |
+|:----------------:|:--------------------------------------:|
+|     !tags    |        Tags Chat Manager.        |
 
 ### Creating A Pull Request 😃
 

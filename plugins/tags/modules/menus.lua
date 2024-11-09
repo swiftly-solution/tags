@@ -1,6 +1,6 @@
 GenerateTagsMenu = function(playerid)
     local player = GetPlayer(playerid)
-    if not player or not player:IsValid() then return end
+    if not player or not player:IsValid() or not player:CBaseEntity():IsValid() then return end
 
     local options = {}
 
@@ -20,7 +20,7 @@ GenerateTagsMenu = function(playerid)
                     local cookieSelected = exports["cookies"]:GetPlayerCookie(playerid, "tags.selected")
 
                     if cookieSelected == "auto" then
-                        local lastTag = DetermineLastTag(playerid)
+                        local lastTag = DetermineLastTag(player)
                         if not lastTag then
                             table.insert(options, {FetchTranslation("tags.menu.option.tag", playerid) .. ": <font color='white'>NONE</font>", "sw_tags list"})
                             return
@@ -32,7 +32,28 @@ GenerateTagsMenu = function(playerid)
                             return
                         end
                         local tag = Tags[TagsIndexMap[cookieSelected]]
-                        table.insert(options, {FetchTranslation("tags.menu.option.tag", playerid) .. ": <font color='".. tag.color .."'>".. tag.tag .. "</font>", "sw_tags list"})
+                        local item = switch(tag.color, {
+                            teamcolor = function()
+                                return switch(player:CBaseEntity().TeamNum, {
+                                    [Team.CT] = function ()
+                                        return "<font color='blue'>".. tag.tag .. "</font>"
+                                    end,
+                                    [Team.T] = function ()
+                                        return "<font color='yellow'>".. tag.tag .. "</font>"
+                                    end,
+                                    [Team.Spectator] = function ()
+                                        return "<font color='white'>".. tag.tag .. "</font>"
+                                    end,
+                                    [Team.None] = function ()
+                                        return "<font color='white'>".. tag.tag .. "</font>"
+                                    end
+                                })
+                            end,
+                            default = function ()
+                                return "<font color='".. tag.color .."'>".. tag.tag .. "</font>"                                
+                            end
+                        })
+                        table.insert(options, {FetchTranslation("tags.menu.option.tag", playerid) .. ": ".. item, "sw_tags list"})
                     end
                 end
             })
@@ -58,13 +79,33 @@ end
 GenerateTagsListMenu = function(playerid)
     local player = GetPlayer(playerid)
     if not player or not player:IsValid() then return end
-    local tags = DetermineTags(playerid)
+    local tags = DetermineTags(player)
     if not tags then return GenerateTagsMenu(playerid) end
-
     local options = {}
 
     for _, tag in next, tags do
-        table.insert(options, {"<font color='".. tag.color .."'>".. tag.tag .. "</font>", "sw_tags set " .. tag.identifier})
+
+        switch(tag.color, {
+            teamcolor = function()
+                switch(player:CBaseEntity().TeamNum, {
+                    [Team.CT] = function()
+                        table.insert(options, {"<font color='blue'>".. tag.tag .. "</font>", "sw_tags set " .. tag.identifier})
+                    end,
+                    [Team.T] = function()
+                        table.insert(options, {"<font color='yellow'>".. tag.tag .. "</font>", "sw_tags set " .. tag.identifier})
+                    end,
+                    [Team.Spectator] = function()
+                        table.insert(options, {"<font color='white'>".. tag.tag .. "</font>", "sw_tags set " .. tag.identifier})
+                    end,
+                    [Team.None] = function()
+                        table.insert(options, {"<font color='white'>".. tag.tag .. "</font>", "sw_tags set " .. tag.identifier})
+                    end
+                })
+            end,
+            default = function()
+                table.insert(options, {"<font color='".. tag.color .."'>".. tag.tag .. "</font>", "sw_tags set " .. tag.identifier})
+            end
+        })
     end
     if #options < 1 then return GenerateTagsMenu(playerid) end
 
