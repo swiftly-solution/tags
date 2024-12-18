@@ -23,25 +23,21 @@ local consoleCommands = {
                 "Syntax: sw_tags add <identifier> <tag> <color> <name_color> <msg_color> <scoreboard (0/1)>")
         end
 
-
-        local addRowQuery =
-        "INSERT INTO @tablename VALUES ('@identifier', '@tag', '@color', '@name_color', '@msg_color', @scoreboard)"
-        local addRowParams = {
-            ["tablename"] = config:Fetch("tags.database.tablesname.tags"),
-            ["identifier"] = identifier,
-            ["tag"] = tag,
-            ["color"] = color,
-            ["name_color"] = name_color,
-            ["msg_color"] = msg_color,
-            ["scoreboard"] = scoreboard
-        }
-
-        db:QueryParams(addRowQuery, addRowParams, function(err, result)
+        db:QueryBuilder():Table(tostring(config:Fetch("tags.database.tablesname.tags") or "sw_tags")):Insert(
+            {
+                identifier = identifier,
+                tag = tag,
+                color = color,
+                name_color = name_color,
+                msg_color = msg_color,
+                scoreboard = scoreboard
+            }
+        ):Execute(function (err, result)
             if #err > 0 then
                 return print("{DARKRED} ERROR: {DEFAULT}" .. err)
             end
             ReplyToCommand(playerid, config:Fetch("tags.prefix"), FetchTranslation("tags.added"):gsub("{ID}", identifier))
-            ReloadTags()
+            ReloadTags()            
         end)
     end,
 
@@ -58,19 +54,13 @@ local consoleCommands = {
                 FetchTranslation("tags.not_exists"):gsub("{ID}", identifier))
         end
 
-        local removeRowQuery = "DELETE FROM @tablename WHERE identifier = '@identifier' LIMIT 1;"
-        local removeRowParams = {
-            ["tablename"] = config:Fetch("tags.database.tablesname.tags"),
-            ["identifier"] = identifier
-        }
-
-        db:QueryParams(removeRowQuery, removeRowParams, function(err, result)
+        db:QueryBuilder():Table(tostring(config:Fetch("tags.database.tablesname.tags") or "sw_tags")):Delete():Where('identifier', '=', identifier):Execute(function (err, result)
             if #err > 0 then
                 return print("{DARKRED} ERROR: {DEFAULT}" .. err)
             end
             ReplyToCommand(playerid, config:Fetch("tags.prefix"),
                 FetchTranslation("tags.removed"):gsub("{ID}", identifier))
-            ReloadTags()
+            ReloadTags()            
         end)
     end,
 
@@ -89,28 +79,39 @@ local consoleCommands = {
 
         local option = args[3]
 
-        if option == "tag" and option ~= "color" and option ~= "name_color" and option ~= "msg_color" and option ~= "scoreboard" then
+        if option ~= "tag" and option ~= "color" and option ~= "name_color" and option ~= "msg_color" and option ~= "scoreboard" then
             return ReplyToCommand(playerid, config:Fetch("tags.prefix"),
                 "Syntax: sw_tags edit <identifier> <tag/color/name_color/msg_color/scoreboard> <value>)")
         end
         local value = args[4]
 
+        local qb = db:QueryBuilder():Table(tostring(config:Fetch("tags.database.tablesname.tags") or "sw_tags")):Where('identifier', '=', identifier)
 
-        local updateRowQuery = "UPDATE @tablename SET @option = '@value' WHERE identifier = '@identifier'";
-        local updateRowParams = {
-            ["tablename"] = config:Fetch("tags.database.tablesname.tags"),
-            ["option"] = option,
-            ["value"] = value,
-            ["identifier"] = identifier
-        }
+        switch(option, {
+            ["tag"] = function ()
+                qb:Update({tag = value})
+            end,
+            ["color"] = function ()
+                qb:Update({color = value})
+            end,
+            ["name_color"] = function ()
+                qb:Update({name_color = value})
+            end,
+            ["msg_color"] = function ()
+                qb:Update({msg_color = value})
+            end,
+            ["scoreboard"] = function ()
+                qb:Update({scoreboard = value})
+            end,
+        })
 
-        db:QueryParams(updateRowQuery, updateRowParams, function(err, result)
+        qb:Execute(function (err, result)
             if #err > 0 then
                 return print("{DARKRED} ERROR: {DEFAULT}" .. err)
             end
             ReplyToCommand(playerid, config:Fetch("tags.prefix"),
                 FetchTranslation("tags.updated"):gsub("{ID}", identifier))
-            ReloadTags()
+            ReloadTags()            
         end)
     end,
 
@@ -193,7 +194,6 @@ local playerCommands = {
 
     end
 }
-
 
 commands:Register("tags", function(playerid, args, argc, silent, prefix)
     if playerid < 0 then
