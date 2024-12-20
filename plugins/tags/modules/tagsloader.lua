@@ -2,27 +2,21 @@ AddEventHandler("OnPluginStart", function(event)
     db = Database(tostring(config:Fetch("tags.database.connection")))
     if not db:IsConnected() then return EventResult.Continue end
 
-    local createTableQuery = [[
-        CREATE TABLE IF NOT EXISTS @tablename (
-            identifier VARCHAR(255) PRIMARY KEY,
-            tag VARCHAR(255) NOT NULL,
-            color VARCHAR(255) NOT NULL,
-            name_color VARCHAR(255) NOT NULL,
-            msg_color VARCHAR(255) NOT NULL,
-            scoreboard TINYINT(1) NOT NULL DEFAULT 0
-        );
-    ]]
-
-    local createTableParams = {
-        ["tablename"] = config:Fetch("tags.database.tablesname.tags"),
-    }
-
-    db:QueryParams(createTableQuery, createTableParams, function(err, result)
-        if #err > 0 then
-            return print("{DARKRED} ERROR: {DEFAULT}" .. err)
-        end
-        TagsLoader()
-    end)
+    db:QueryBuilder():Table(tostring(config:Fetch("tags.database.tablesname.tags") or "sw_tags"))
+        :Create({
+            identifier = "string|max:255|primary",
+            tag = "string|max:255",
+            color = "string|max:255",
+            name_color = "string|max:255",
+            msg_color = "string|max:255",
+            scoreboard = "boolean"
+        })
+        :Execute(function (err, result)
+            if #err > 0 then
+                return print("{DARKRED} ERROR: {DEFAULT}" .. err)
+            end
+            TagsLoader()         
+        end)
     return EventResult.Continue
 end)
 
@@ -34,12 +28,7 @@ function TagsLoader(cb)
     Tags = {}
     TagsIndexMap = {}
 
-    local selectTableQuery = "SELECT * from @tablename"
-    local selectTableParams = {
-        ["tablename"] = config:Fetch("tags.database.tablesname.tags")
-    }
-
-    db:QueryParams(selectTableQuery, selectTableParams, function (err, result)
+    db:QueryBuilder():Table(tostring(config:Fetch("tags.database.tablesname.tags")) or "sw_tags"):Select({'*'}):Execute(function (err, result)
         if #err > 0 then
             return print("{DARKRED} ERROR: {DEFAULT}" .. err)
         end
@@ -55,8 +44,9 @@ function TagsLoader(cb)
         end
 
         local out, _ = FetchTranslation("tags.loaded"):gsub("{COUNT}", #Tags)
-        print(out)
+        print(out)   
     end)
+
 
 end
 
