@@ -79,7 +79,7 @@ function SetPlayerTag(player, tag)
 end
 
 function SetupTag(playerid)
-    if #Tags == 0 then return end
+    if not Tags or #Tags == 0 then return end
     local player = GetPlayer(playerid)
     if not player then return end
 
