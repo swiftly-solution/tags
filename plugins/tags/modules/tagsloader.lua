@@ -234,6 +234,7 @@ end
 
 function DetermineLastTag(player)
     local tags = DetermineTags(player)
+    if not tags then return nil end
     return #tags > 0 and tags[#tags] or nil
 end
 
